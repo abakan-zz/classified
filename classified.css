@@ -1,0 +1,22 @@
+.axis path,
+.axis line { fill: none; stroke: #000; shape-rendering: crispEdges; }
+.dots text,
+.legend text,
+.metrics.axis text { font: 11px sans-serif; }
+.metrics.axis path { display: none; }
+.pos {fill-opacity: 0.5;}
+.neg {fill-opacity: 0.05;}
+.tp { fill: #1f77b4; stroke: #1f77b4; stroke-width: 0; }
+.fn { fill: #9467bd; stroke: #9467bd; stroke-width: 0; }
+.tn { fill: #d62728; stroke: #d62728; stroke-width: 0; }
+.fp { fill: #8c564b; stroke: #8c564b; stroke-width: 0; }
+.legend text { font-size: 12pxbba; font-weight: bold; font-family: sans-serif; }
+.metric .title { font-size: 12px; font-weight: bold; text-anchor: end; font-family: sans-serif; }
+.metric .subtitle { font-size: 10px; fill: #999; text-anchor: end; font-family: sans-serif; }
+rect.mbg  { fill: #ddd; }
+rect.mbar { fill: steelblue; }
+.grid line { stroke: #fff; }
+.grid .minor line { stroke-opacity: .5; }
+.grid text { display: none;}
+.axis line { stroke: #000;}
+.grid path { display: none; }
