@@ -133,7 +133,7 @@ function classified(data, selector) {
             counts[what] += 1;
             return "dot " + what + " " + ["neg", "pos"][label];
         });
-        d3.select(".yline").transition(500).attr("x1", x(threshold)).attr("x2", x(threshold));
+        svg.select(".yline").transition(500).attr("x1", x(threshold)).attr("x2", x(threshold));
 
         svg.selectAll(".legend text").remove();
         svg.selectAll(".legend").append("text").attr("x", 10)
