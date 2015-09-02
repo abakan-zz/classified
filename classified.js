@@ -115,17 +115,6 @@ Classified.prototype.showCircles = function() {
         this[this.data[i].tc(t)] += 1;
     }
 
-
-    this.yline = this.svg.append("g")
-        .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
-        .append("line").attr("class", "yline")
-        .style("stroke", "black").style("stroke-linecap", "butt")
-        .style("stroke-dasharray", "5,5")
-        .attr("x1", threshold).attr("x2", threshold)
-        .attr("y1", origin)
-        .attr("y2", this.dots_height + this.radius);
-
-
     this.svg.append("g")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .selectAll(".dot").data(this.data)
@@ -134,13 +123,30 @@ Classified.prototype.showCircles = function() {
         .attr("cx", threshold)
         .attr("cy", function(d, i) {return y_max - y_max * i / size})
         .attr("class", function(d) {return "dot " + d.tc(t);})
-        .attr("klass", function(d) {return d.tc(t);})
+        .attr("tc", function(d) {return d.tc(t);})
         .transition()
         .duration(100)
         .delay(function(d, i) {return i * delay})
         .attr("r", this.radius)
         .attr("cx", function(d) {return d.x;})
         .attr("cy", function(d) {return d.y;})
+
+    var yline = this.svg.append("g")
+        .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
+        .append("line")
+        .style("stroke", "black").style("stroke-linecap", "butt")
+        .style("stroke-dasharray", "2,3")
+        .attr("x1", threshold).attr("x2", threshold)
+        .attr("y1", origin)
+        .attr("y2", this.dots_height + 1.5);
+
+    var pmark = this.svg.append("g")
+        .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
+        .append("circle")
+        .attr("r", 2)
+        .attr("cx", threshold)
+        .attr("cy", this.dots_height + 1.5);
+
 
     var circles = this.svg.selectAll('circle.dot')[0]
         radius = this.radius;
@@ -149,9 +155,9 @@ Classified.prototype.showCircles = function() {
     var paint = function(t) {
         var new_class = this.tc(t), dot = d3.select(circles[this.index]);
 
-        c[dot.attr("klass")]--;
+        c[dot.attr("tc")]--;
         c[new_class]++;
-        dot.attr('klass', new_class)
+        dot.attr('tc', new_class)
             .attr("class", "dot " + new_class);
         dot.attr("r", radius - (!this.truth(t) / 2));
         console.log({'fp': c.fp, 'tp': c.tp, 'fn': c.fn, 'tn': c.tn, 'sum': c.fp + c.tp + c.fn + c.tn});
@@ -176,7 +182,11 @@ Classified.prototype.showCircles = function() {
         .on("mouseover", function() { focus.style("display", null); })
         .on("mouseout", function() { focus.style("display", "none"); })
         .on("mousemove", function() {
-            c.updateCircles(c.p2x.invert(d3.mouse(this)[0]));
+            var xy = d3.mouse(this);
+            yline.attr("x1", xy[0]).attr("x2", xy[0]).attr("y1", xy[1]);
+            pmark.attr("cx", xy[0]);
+            c.updateCircles(c.p2x.invert(xy[0]));
+
         });
 
 };
@@ -189,7 +199,7 @@ Classified.prototype.updateCircles = function(threshold) {
 
     var data = this.data, size = this.size;
     //console.log([threshold, this.threshold, this.t_idx]);
-    this.yline.attr("x1", this.p2x(threshold)).attr("x2", this.p2x(threshold));
+
 
     var previous = this.threshold;
     this.threshold = threshold;
