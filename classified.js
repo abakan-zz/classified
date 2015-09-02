@@ -131,9 +131,14 @@ Classified.prototype.showCircles = function() {
         .attr("cx", function(d) {return d.x;})
         .attr("cy", function(d) {return d.y;})
 
+    var circles = this.svg.selectAll('circle.dot')[0]
+        radius = this.radius;
+    this.circles = circles;
+
     var yline = this.svg.append("g")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .append("line")
+        .style("display", "none")
         .style("stroke", "black").style("stroke-linecap", "butt")
         .style("stroke-dasharray", "2,3")
         .attr("x1", threshold).attr("x2", threshold)
@@ -143,14 +148,11 @@ Classified.prototype.showCircles = function() {
     var pmark = this.svg.append("g")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .append("circle")
-        .attr("r", 2)
+        .attr("r", radius / 2)
         .attr("cx", threshold)
         .attr("cy", this.dots_height + 1.5);
 
 
-    var circles = this.svg.selectAll('circle.dot')[0]
-        radius = this.radius;
-    this.circles = circles;
     var c = this;
     var paint = function(t) {
         var new_class = this.tc(t), dot = d3.select(circles[this.index]);
@@ -160,7 +162,6 @@ Classified.prototype.showCircles = function() {
         dot.attr('tc', new_class)
             .attr("class", "dot " + new_class);
         dot.attr("r", radius - (!this.truth(t) / 2));
-        console.log({'fp': c.fp, 'tp': c.tp, 'fn': c.fn, 'tn': c.tn, 'sum': c.fp + c.tp + c.fn + c.tn});
     };
     var prev = this.data[0].proba, diff = 0, min_diff = 1;
     for (var i = 0; i < this.size; i++) {
@@ -172,15 +173,13 @@ Classified.prototype.showCircles = function() {
     }
     this.min_diff = min_diff;
 
-    var focus = this.svg.append("g").attr("class", "focus").style("display", "none");
-
     this.overlay = this.svg.append("rect")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .attr("class", "overlay")
         .attr("width", this.dots_width)
         .attr("height", this.dots_height)
-        .on("mouseover", function() { focus.style("display", null); })
-        .on("mouseout", function() { focus.style("display", "none"); })
+        .on("mouseover", function() { yline.style("display", null); })
+        .on("mouseout", function() { yline.style("display", "none"); })
         .on("mousemove", function() {
             var xy = d3.mouse(this);
             yline.attr("x1", xy[0]).attr("x2", xy[0]).attr("y1", xy[1]);
