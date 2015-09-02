@@ -1,160 +1,218 @@
-function classified(data, selector) {
 
-    var metrics = [
-        {"title": "Accuracy", "subtitle": "(TP + TN) / (P + N)"},
-        {"title": "Precision", "subtitle": "TP / (TP + FP)"},
-        {"title": "Recall", "subtitle": "TP / (TP + FN)"},
-        {"title": "Specificity", "subtitle": "TN / (TN + FP)"},
-    ];
+function Classified(data, options) {
+    this.parseOptions(options || {});
+    this.prepData(data);
+    this.packCircles();
+    this.svg = d3.select(this.selector)
+        //.style("background-color", "lightgray")
+        .attr("width", this.width).attr("height", this.height);
 
-    var margin = {
-        top: 20, right: 20, middle: 10, bottom: 20, left: 20
-    }, radius = 8,
-    legend_width = 80, dots_height = 50, dots_width = 400,
-    bar_height = 28, bars_height = metrics.length * bar_height,
-    width = legend_width + dots_width + margin.left + margin.right,
-    height = dots_height + bars_height + margin.top + margin.bottom + margin.middle;
+    this.showCircles();
+}
+Classified.prototype.parseOptions = function(options) {
+    this.width = options.width || 600;
+    this.height = options.height || 500;
+    if (this.height < 400) { this.height = 400; }
+    this.radius = 5;
+    this.margin = 10;
+    this.bars_height = 300;
+    this.dots_height = this.height - this.bars_height;
+    this.dots_width = this.width - this.margin * 2;
+    this.selector = options.selector;
+};
+Classified.prototype.prepData = function(data) {
 
-    data.sort()
-    if (selector === undefined) {
-        var svg = d3.select("body").append("svg")
-            .attr("width", width).attr("height", height).append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-    } else {
-        var svg = d3.select(selector)
-            .attr("width", width).attr("height", height).append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    var dots = [], d, dot, n_pos = 0;
+
+    var klass = function(t) {
+        return (this.proba > t) ? (this.label ? "tp" : "fp") : (this.label ? "fn" : "tn")
     };
+    for (var i = 0; i < data.length; i++) {
+        d = data[i];
+        dot = {'proba': d[0], 'label': d[1] > 0}
+        dots.push(dot);
+        n_pos += dot.label;
+        dot.class = klass;
+    }
+    dots.sort(function (a, b) { return a.proba - b.proba; });
 
-    var x = d3.scale.linear().range([0, dots_width]);
-    var y = d3.scale.linear().range([dots_height, 0]);
+    this.size = dots.length;
+    this.data = dots;
+    this.n_pos = n_pos;
+    this.n_neg = this.size - n_pos;
+    this.dot_index = this.n_neg;
+};
 
-    x.domain(d3.extent(data, function(d) {return d[0];})).nice();
-    y.domain(d3.extent(data, function(d) {return d[1];}));
+Classified.prototype.packCircles = function() {
 
-    var xAxis = d3.svg.axis().scale(x).tickSize(4, -4).orient("bottom");
+    var rows = [], data = this.data,
+        dist = Math.min(this.radius * 2 * 1.1,
+            Math.pow(1. * this.dots_width * this.dots_height / this.size, 0.5));
 
-    var dots = svg.append("g").attr("class", "dots")
-        .attr("transform", "translate(" + legend_width + ",0)")
-        .attr("width", dots_width).attr("height", dots_height);
+    this.dots_x = d3.scale.linear().range([0, this.dots_width])
+        .domain(d3.extent(data, function(d) {return d.proba;})).nice();
 
-    dots.append("line").attr("class", "yline")
+    var dots_x = this.dots_x;
+
+    for (var i = 0; i < this.size; i++) {
+        data[i].x = dots_x(data[i].proba);
+        data[i].index = i;
+    }
+
+    var prev = dist / 2;
+    for (var k = 0; k < 100; k++) {
+        var bottom = this.dots_height - dist / 1.1 / 2;
+        console.log('Distance ' + dist);
+        rows = [];
+        for (var i = 0; i < this.size; i++) {
+            for (j = 0; j < rows.length & rows[j] > data[i].x; j++) {}
+            rows[j] = data[i].x + dist;
+            data[i].y = bottom - (j * dist);
+        }
+        if (rows.length * dist > bottom) {
+            dist = dist * .95;
+        } else {
+            break;
+        }
+    }
+
+    var prev = dist / 2;
+    for (var k = 1000; k < 1000; k++) {
+        var bottom = this.dots_height - dist / 1.0 / 2;
+        console.log('Distance ' + dist);
+        rows = [];
+        for (var i = 0; i < this.size; i++) {
+            for (j = 0; j < rows.length & rows[j] > data[i].x; j++) {}
+            rows[j] = data[i].x + dist;
+            data[i].y = bottom - (j * dist);
+        }
+        if ( ! (0 < rows.length * dist - bottom < 1)) {
+            var temp = (dist + prev) / 2;
+            prev = dist;
+            dist = temp;
+        } else {
+            break;
+        }
+    }
+
+    this.radius = (dist) / 1.1 / 2;
+    this.dots_y_max = dist * rows.length;
+    console.log('Distance: ' + dist);
+    console.log('Radius: ' + this.radius);
+
+};
+
+Classified.prototype.showCircles = function() {
+
+    var delay = 2000 / this.size;
+
+    var xAxis = d3.svg.axis().scale(this.dots_x).orient("bottom")   ;
+
+    this.svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(" + this.margin + "," + (this.dots_height + this.margin + 1) + ")")
+        .call(xAxis);
+        //.append("text").attr("class", "label")
+        //.attr("x", -10).attr("y", -6)
+        //.text("Probability");
+
+    var t = this.data[this.n_neg].proba;
+    this.threshold = t;
+    var threshold = this.dots_x(this.threshold),
+        origin = this.dots_height - this.dots_y_max,
+        dots_y_max = this.dots_y_max,
+        size = this.size;
+
+
+    this.yline = this.svg.append("g")
+        .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
+        .append("line").attr("class", "yline")
         .style("stroke", "black").style("stroke-linecap", "butt")
         .style("stroke-dasharray", "5,5")
-        .attr("x1", 0).attr("x2", 0)
-        .attr("y1", - radius).attr("y2", dots_height + radius);
+        .attr("x1", threshold).attr("x2", threshold)
+        .attr("y1", origin)
+        .attr("y2", this.dots_height + this.radius);
 
-    dots.append("g").selectAll(".dot").data(data)
-        .enter().append("circle").attr("class", "dot").attr("r", radius)
-        .attr("cx", function(d) {return x(d[0]);})
-        .attr("cy", function(d) {return y(d[1]);})
-        .attr("proba", function(d) {return d[0];})
-        .attr("label", function(d) {return d[1];})
-        .on("mouseover", function() {update(d3.select(this).style("stroke-width", 4).attr("proba"));})
-        .on("mouseout", function() {d3.select(this).style("stroke-width", 0)});
 
-    dots.append("g")
-        .attr("class", "x axis")
-        .attr("transform", "translate(0," + dots_height / 2 * .9 + ")")
-        .call(xAxis)
-        .append("text").attr("class", "label")
-        .attr("x", -10).attr("y", -6)
-        .text("Probability");
+    this.svg.append("g")
+        .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
+        .selectAll(".dot").data(this.data)
+        .enter().append("circle")
+        .attr("r", 0)
+        .attr("cx", threshold)
+        .attr("cy", function(d, i) {return dots_y_max - dots_y_max * i / size})
+        .attr("class", function(d) {return "dot " + d.class(t);})
+        .transition()
+        .duration(100)
+        .delay(function(d, i) {return i * delay})
+        .attr("r", this.radius)
+        .attr("cx", function(d) {return d.x;})
+        .attr("cy", function(d) {return d.y;})
 
-    // Scatter plot legend
-    svg.append("g").selectAll(".legend")
-        .data(['TP', 'FN', 'TN', 'FP'])
-        .enter().append("g").attr("class", "legend")
-        .attr("transform", function(d, i) {return "translate(5," + (i * 16) + ")";})
-        .append("circle").attr("cx", 0).attr("r", 6)
-        .attr("class", function(d) {return d.toLowerCase();});
+    var circles = this.svg.selectAll('circle.dot')[0];
+    this.circles = circles;
 
-    // Metrics legend
-    var mtr = svg.append("g")
-        .attr("transform", "translate(0," + (dots_height + margin.top) + ")");
+    var paint = function(t) {d3.select(circles[this.index]).attr("class", "dot " + this.class(t))}
+    ;
+    var prev = this.data[0].proba, diff = 0, min_diff = 1;
+    for (var i = 0; i < this.size; i++) {
+        this.data[i].paint = paint;
+        diff = this.data[i].proba - prev
+        if (diff > 0 & diff < min_diff) {
+            min_diff = diff;
+        }
+    }
+    this.min_diff = min_diff;
 
-    mtr.selectAll(".metric").data(metrics).enter()
-        .append("g").attr("class", "metric")
-        .append("text").attr("class", "title")
-        .attr("x", legend_width - 10)
-        .attr("y", function (d, i) { return i * bar_height + margin.middle })
-        .text(function (d) { return d.title; });
-
-    mtr.selectAll(".metric")
-        .append("text")
-        .attr("class", "subtitle")
-        .attr("x", legend_width - 10)
-        .attr("y", function (d, i) { return i * bar_height + 12 + margin.middle })
-        .text(function (d) { return d.subtitle; });
-
-    // Metrics grid background
-    var mbg = svg.append("g")
-        .attr("transform", "translate(" + legend_width + "," + (dots_height + margin.top) + ")")
-        .selectAll(".mbg").data(metrics).enter()
-        .append("rect").attr("class", "mbg")
-        .attr("width", dots_width).attr("height", bar_height - 4)
-        .attr("x", 0).attr("y", function (d, i) { return i * bar_height });
-
-    // Metrics grid axis
-    var bx = d3.scale.linear()
-        .domain([0, 1.0])
-        .range([0, dots_width]);
-
-    svg.append("g")
-        .attr("class", "grid")
-        .attr("transform", "translate(" + legend_width + "," + (margin.top + dots_height + bars_height) + ")")
-        .call(d3.svg.axis().scale(bx).ticks(20).tickSize(-bars_height))
-        .selectAll(".tick").data(bx.ticks(10), function(d) {return d;})
-        .exit().classed("minor",  true);
-
-    svg.append("g")
-        .attr("class", "metrics axis")
-        .attr("transform", "translate(" + legend_width + "," + (dots_height + 12 + bars_height) + ")")
-        .call(d3.svg.axis().scale(bx).ticks(10));
-
-    // Metrics bars
-    var mbar = svg.append("g")
-        .attr("transform", "translate(" + legend_width + "," + (dots_height + margin.top) + ")")
-        .selectAll(".mbar").data(metrics).enter()
-        .append("rect").attr("class", "mbar")
-        .attr("metric", function (d) { return d.title})
-        .attr("width", dots_width).attr("height", 8)
-        .attr("x", 0).attr("y", function (d, i) { return i * bar_height + (bar_height - 12) / 2  });
-
-    var measures = {"Accuracy": 1, "Precision": 1, "Recall": 1, "Specificity": 1};
-    function update(threshold) {
-        var counts = {'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0};
-        svg.selectAll(".dot")
-        .attr("class", function() {
-            var d = d3.select(this);
-            var label = d.attr("label");
-            var pred = (d.attr("proba") >= threshold) + 0;
-            var what = ["f", "t"][(pred == label) + 0] + ["n", "p"][pred];
-            counts[what] += 1;
-            return "dot " + what + " " + ["neg", "pos"][label];
+    var focus = this.svg.append("g").attr("class", "focus").style("display", "none");
+    var c = this;
+    this.overlay = this.svg.append("rect")
+        .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
+        .attr("class", "overlay")
+        .attr("width", this.dots_width)
+        .attr("height", this.dots_height)
+        .on("mouseover", function() { focus.style("display", null); })
+        .on("mouseout", function() { focus.style("display", "none"); })
+        .on("mousemove", function() {
+            c.updateCircles(c.dots_x.invert(d3.mouse(this)[0]));
         });
-        svg.select(".yline").transition(500).attr("x1", x(threshold)).attr("x2", x(threshold));
 
-        svg.selectAll(".legend text").remove();
-        svg.selectAll(".legend").append("text").attr("x", 10)
-        .attr("y", -0.5)
-        .attr("dy", ".35em")
-        .text(function(d) {return d + " (" + counts[d.toLowerCase()] + ")";});
+};
+Classified.prototype.updateCircles = function(threshold) {
+    if (Math.abs(threshold - this.threshold) < this.min_diff){
+        return;
+    }
+    //if (threshold > this.data[this.size]){threshold = this.data[this.size].proba}
+    //if (threshold < this.data[0]){threshold = this.data[0].proba}
 
-        var tp = counts["tp"], fp = counts["fp"], tn = counts["tn"], fn = counts["fn"];
+    var data = this.data, size = this.size;
+    //console.log([threshold, this.threshold, this.dot_index]);
+    this.yline.attr("x1", this.dots_x(threshold)).attr("x2", this.dots_x(threshold));
+    var previous = this.threshold;
+    this.threshold = threshold;
+    if (threshold > previous) {
+        for (i = this.dot_index; i < size && data[i].proba < threshold ; i++) {
+            data[i].paint(threshold);
+        }
+    } else {
+        for (i = this.dot_index; i >= 0 && data[i].proba > threshold ; i--) {
+            data[i].paint(threshold);
+        }
+    }
+    if (i < 0) { this.dot_index = 0; }
+    else if (i >= size) { this.dot_index = size - 1; }
+    else { this.dot_index = i; }
 
-        measures.Accuracy = ((tp + tn) / data.length);
-        measures.Precision = (tp / (tp + fp));
-        measures.Recall = (tp / (tp + fn));
-        measures.Specificity = (tn / (tn + fp));
+};
+Classified.prototype.showMetric = function() {
+};
+Classified.prototype.showROCCurve = function() {
+};
+Classified.prototype.show = function() {
+};
+Classified.prototype.update = function() {
+};
 
-        svg.selectAll(".mbar").transition()
-        .duration(500)
-        .attr("width", function() {
-            var bar = d3.select(this);
-            return bx(measures[bar.attr("metric")]);
-        });
-    };
-
-    update(data[d3.sum(data, function(e) {return e[1] < 1})][0]);
+function classified(data, options) {
+    return new Classified(data, options);
 }
