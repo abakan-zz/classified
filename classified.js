@@ -56,7 +56,7 @@ Classified.prototype.prepData = function(data) {
 
 Classified.prototype.packDots = function() {
 
-    var rows = [],
+    var rows = [], bottom, size = this.size, height = this.dots_height,
         data = this.data,
         dist = Math.min(this.radius * 2 * 1.1, Math.pow(1. * this.dots_width * this.dots_height / this.size, 0.5));
 
@@ -67,26 +67,21 @@ Classified.prototype.packDots = function() {
         data[i].index = i;
     }
 
-    var prev = dist / 2;
     for (var k = 0; k < 100; k++) {
-        var bottom = this.dots_height - dist / 1.1 / 2;
-        console.log('Distance ' + dist);
+        bottom = height - dist / 1.1 / 2;
         rows = [];
-        for (var i = 0; i < this.size; i++) {
+        for (var i = 0; i < size; i++) {
             for (j = 0; j < rows.length & rows[j] > data[i].x; j++) {}
             rows[j] = data[i].x + dist;
             data[i].y = bottom - (j * dist);
         }
-        if (rows.length * dist > bottom) {
-            dist = dist * .95;
-        } else {
-            break;
-        }
+        if (rows.length * dist < bottom) { break; }
+        else { dist = dist * .95 }
     }
 
     this.p2x = p2x;
     this.radius = (dist) / 1.1 / 2;
-    this.dots_y_max = dist * rows.length;
+    this.y_max = dist * rows.length;
     console.log('Distance: ' + dist);
     console.log('Radius: ' + this.radius);
 
@@ -109,8 +104,8 @@ Classified.prototype.showCircles = function() {
     var t = this.data[this.n_neg].proba;
     this.threshold = t;
     var threshold = this.p2x(this.threshold),
-        origin = this.dots_height - this.dots_y_max,
-        dots_y_max = this.dots_y_max,
+        origin = this.dots_height - this.y_max,
+        y_max = this.y_max,
         size = this.size;
     this.tp = 0;
     this.fp = 0;
@@ -137,7 +132,7 @@ Classified.prototype.showCircles = function() {
         .enter().append("circle")
         .attr("r", 0)
         .attr("cx", threshold)
-        .attr("cy", function(d, i) {return dots_y_max - dots_y_max * i / size})
+        .attr("cy", function(d, i) {return y_max - y_max * i / size})
         .attr("class", function(d) {return "dot " + d.tc(t);})
         .attr("klass", function(d) {return d.tc(t);})
         .transition()
