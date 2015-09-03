@@ -139,7 +139,7 @@ Classified.prototype.showCircles = function() {
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .append("line")
         .style("display", "none")
-        .style("stroke", "black").style("stroke-linecap", "butt")
+        .style("stroke", "red").style("stroke-linecap", "butt")
         .style("stroke-dasharray", "2,3")
         .attr("x1", threshold).attr("x2", threshold)
         .attr("y1", origin)
@@ -148,10 +148,12 @@ Classified.prototype.showCircles = function() {
     var pmark = this.svg.append("g")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .append("circle")
+        .style("fill", "red")
         .attr("r", radius / 2)
         .attr("cx", threshold)
         .attr("cy", this.dots_height + 1.5);
-
+    this._yline = yline;
+    this._pmark = pmark;
 
     var c = this;
     var paint = function(t) {
@@ -173,23 +175,29 @@ Classified.prototype.showCircles = function() {
     }
     this.min_diff = min_diff;
 
-    this.overlay = this.svg.append("rect")
+    this._overlay = this.svg.append("rect")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .attr("class", "overlay")
         .attr("width", this.dots_width)
         .attr("height", this.dots_height)
-        .on("mouseover", function() { yline.style("display", null); })
-        .on("mouseout", function() { yline.style("display", "none"); })
+        .on("mouseover", function() { if (c.isLocked()) {return}; yline.style("display", null); })
+        .on("mouseout", function() { if (c.isLocked()) {return}; yline.style("display", "none"); })
+        .on("click", function() { c.toggle(d3.mouse(this)); })
         .on("mousemove", function() {
-            var xy = d3.mouse(this);
-            yline.attr("x1", xy[0]).attr("x2", xy[0]).attr("y1", xy[1]);
-            pmark.attr("cx", xy[0]);
-            c.updateCircles(c.p2x.invert(xy[0]));
-
+            if (c.isLocked()) {return}
+            c._mousemove(d3.mouse(this));
         });
 
 };
-Classified.prototype.updateCircles = function(threshold) {
+Classified.prototype._mousemove = function(xy) {
+
+    this._yline.attr("x1", xy[0]).attr("x2", xy[0]).attr("y1", xy[1]);
+    this._pmark.attr("cx", xy[0]);
+    this.updateDots(this.p2x.invert(xy[0]));
+
+}
+Classified.prototype.updateDots = function(threshold) {
+    if (this.isLocked()) {return}
     if (Math.abs(threshold - this.threshold) < this.min_diff){
         return;
     }
@@ -198,7 +206,6 @@ Classified.prototype.updateCircles = function(threshold) {
 
     var data = this.data, size = this.size;
     //console.log([threshold, this.threshold, this.t_idx]);
-
 
     var previous = this.threshold;
     this.threshold = threshold;
@@ -227,4 +234,25 @@ Classified.prototype.update = function() {
 
 function classified(data, options) {
     return new Classified(data, options);
+}
+Classified.prototype.lock = function() {
+    this._locked = true;
+    this._yline.style("display", "none");
+    this._pmark.style("fill", "black");
+};
+Classified.prototype.unlock = function() {
+    this._locked = false;
+    this._yline.style("display", null);
+    this._pmark.style("fill", "red");
+};
+Classified.prototype.toggle = function(xy) {
+    if (this._locked) {
+        this.unlock();
+        this._mousemove(xy);
+    } else {
+        this.lock()
+    };
+};
+Classified.prototype.isLocked = function() {
+    return this._locked;
 }
