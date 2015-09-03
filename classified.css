@@ -11,7 +11,7 @@
 .fp { fill: #fff; stroke: #31a354; stroke-width: 2px; }
 .tn { fill: #31a354; stroke: #31a354; stroke-width: 1px; }
 .fn { fill: #fff; stroke: #1f77b4; stroke-width: 2px; }
-.legend text { font-size: 12pxbba; font-weight: bold; font-family: sans-serif; }
+.legend text { font-size: 12pxbba; font-family: sans-serif }
 .metric .title { font-size: 12px; font-weight: bold; text-anchor: end; font-family: sans-serif; }
 .metric .subtitle { font-size: 10px; fill: #999; text-anchor: end; font-family: sans-serif; }
 rect.mbg  { fill: #ddd; }

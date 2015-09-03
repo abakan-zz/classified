@@ -5,6 +5,7 @@ function Classified(data, options) {
         //.style("background-color", "lightgray")
         .attr("width", this.width).attr("height", this.height);
 
+    this._locked = true;
     this.prepData(data);
     this.packDots();
     this.showConfusionMatrix();
@@ -63,7 +64,7 @@ Classified.prototype.prepData = function(data) {
     this.p_min = dots[0].proba;
 };
 Classified.prototype.showConfusionMatrix = function() {
-    var i, bin, dist = this.radius * 2 * 1.1,
+    var i, bin, radius = this.radius, dist = radius * 2 * 1.1,
         n = Math.ceil((this.data[this.size-1].x - this.data[0].x) / dist),
         counts = new Array(n + 1);
     for (i = 0; i < counts.length; i++) {counts[i] = 0};
@@ -75,26 +76,48 @@ Classified.prototype.showConfusionMatrix = function() {
         if (counts[i] < max) {track ++}
         else {track = 0}
     }
-    console.log(i);
-    console.log(counts.length);
 
     var x = (i + 4) * dist;
     var cm = [
-        {"class": "tn", "label": "TN", "r": this.radius, "x": x, "y": dist * 2},
-        {"class": "fn", "label": "FN", "r": this.radius - .5, "x": x, "y": dist * 3},
-        {"class": "fp", "label": "FP", "r": this.radius - .5, "x": x + dist, "y": dist * 2},
-        {"class": "tp", "label": "TP", "r": this.radius, "x": x + dist, "y": dist * 3},
+        {"class": "tn", "label": "TN", "r": radius,
+            "cx": x, "cy": dist * 2,
+            "x": x - radius - 2, "y": dist * 2 + radius - 1,
+            "anchor": "end"},
+        {"class": "fn", "label": "FN", "r": radius - .5,
+            "cx": x, "cy": dist * 3,
+            "x": x - radius - 2, "y": dist * 3 + radius - 1,
+            "anchor": "end"},
+        {"class": "fp", "label": "FP", "r": radius - .5,
+            "cx": x + dist, "cy": dist * 2,
+            "x": x + dist + radius + 2, "y": dist * 2 + radius - 1,
+            "anchor": "start"},
+        {"class": "tp", "label": "TP", "r": radius,
+            "cx": x + dist, "cy": dist * 3,
+            "x": x + dist + radius + 2, "y": dist * 3 + radius - 1,
+            "anchor": "start"}
     ]
 
-    this.svg.append("g")
+    var legend = this.svg.append("g")
+        .attr("class", "legend")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
-        .selectAll(".dot").data(cm)
-        .enter().append("circle")
+        .selectAll(".legend").data(cm)
+        .enter()
+    legend.append("circle")
         .attr("r", function(d) {return d.r})
-        .attr("cx", function(d) {return d.x})
-        .attr("cy", function(d) {return d.y})
-        .attr("class", function(d) {return d.class;});
+        .attr("cx", function(d) {return d.cx})
+        .attr("cy", function(d) {return d.cy})
+        .attr("class", function(d) {return d.class;})
+    legend.append("text")
+        .attr("x", function(d) {return d.x})
+        .attr("y", function(d) {return d.y})
+        .style("text-anchor", function(d) {return d.anchor} )
+        .text(function(d) {return d.label;});
     this._legend = {"tn": cm[0], "fn": cm[1], "fp": cm[2], "tp": cm[3]};
+    var sel = d3.selectAll('.legend text')[0];
+    this._legend["tn"]["text"] = d3.select(sel[0]);
+    this._legend["fn"]["text"] = d3.select(sel[1]);
+    this._legend["fp"]["text"] = d3.select(sel[2]);
+    this._legend["tp"]["text"] = d3.select(sel[3]);
 }
 Classified.prototype.packDots = function() {
 
@@ -131,7 +154,7 @@ Classified.prototype.packDots = function() {
 
 Classified.prototype.showDots = function() {
 
-    var delay = 1000 / this.size;
+    var duration = 1000, delay = duration / this.size;
 
     var xAxis = d3.svg.axis().scale(this.p2x).orient("bottom")   ;
 
@@ -156,19 +179,23 @@ Classified.prototype.showDots = function() {
     //for (var i = 0; i < this.size; i++) {
     //    this[this.data[i].tc(t)] += 1;
     //}
+    var c = this;
 
     this.svg.append("g")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .selectAll(".dot").data(this.data)
         .enter().append("circle")
         .attr("r", 0)
-        .attr("cx", threshold)
-        .attr("cy", function(d, i) {return y_max - y_max * i / size})
-        .attr("class", function(d) {return "dot " + d.show(t);})
+        .attr("cx", function(d) {return c._legend[d.tc(t)].x})
+        .attr("cy", function(d) {return c._legend[d.tc(t)].y})
+        .attr("class", function(d) {return "dot " + d.tc(t);})
         .attr("tc", function(d) {return d.tc(t);})
         .transition()
         .duration(100)
-        .delay(function(d, i) {return i * delay})
+        .delay(function(d, i) {
+            var ms = i * delay;
+            setTimeout(function(){d.show(t); c.updateLegend()}, ms);
+            return ms})
         .attr("r", this.radius)
         .attr("cx", function(d) {return d.x;})
         .attr("cy", function(d) {return d.y;})
@@ -181,7 +208,8 @@ Classified.prototype.showDots = function() {
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .append("line")
         .style("display", "none")
-        .style("stroke", "red").style("stroke-linecap", "butt")
+        .style("stroke", "red")
+        .style("stroke-linecap", "butt")
         .style("stroke-dasharray", "2,3")
         .attr("x1", threshold).attr("x2", threshold)
         .attr("y1", origin)
@@ -190,14 +218,13 @@ Classified.prototype.showDots = function() {
     var pmark = this.svg.append("g")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .append("circle")
-        .style("fill", "red")
+        .style("fill", "black")
         .attr("r", radius / 2)
         .attr("cx", threshold)
         .attr("cy", this.dots_height + 1.5);
     this._yline = yline;
     this._pmark = pmark;
 
-    var c = this;
     var paint = function(t) {
         var new_class = this.tc(t), dot = d3.select(circles[this.index]);
 
@@ -227,12 +254,20 @@ Classified.prototype.showDots = function() {
         .on("click", function() { c.toggle(); c._mousemove(d3.mouse(this));})
         .on("mousemove", function() {c._mousemove(d3.mouse(this));});
 
+    setTimeout(function() {c.unlock()}, duration + 100);
 };
 Classified.prototype._mousemove = function(xy) {
     if (this._locked) {return};
     this._yline.attr("x1", xy[0]).attr("x2", xy[0]).attr("y1", xy[1]);
     this._pmark.attr("cx", xy[0]);
     this.updateDots(this.p2x.invert(xy[0]));
+
+}
+Classified.prototype.updateLegend = function(){
+    this._legend["tp"].text.text("TP (" + this.tp + ")");
+    this._legend["fp"].text.text("FP (" + this.fp + ")");
+    this._legend["fn"].text.text("(" + this.fn + ") FN");
+    this._legend["tn"].text.text("(" + this.tn + ") TN");
 
 }
 Classified.prototype.updateDots = function(threshold) {
@@ -251,10 +286,12 @@ Classified.prototype.updateDots = function(threshold) {
     if (threshold > previous) {
         for (i = this.t_idx; i < size && data[i].proba < threshold ; i++) {
             data[i].paint(threshold);
+            this.updateLegend();
         }
     } else {
         for (i = this.t_idx; i >= 0 && data[i].proba > threshold ; i--) {
             data[i].paint(threshold);
+            this.updateLegend();
         }
     }
     if (i < 0) { this.t_idx = 0; }
