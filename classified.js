@@ -1,13 +1,15 @@
 
 function Classified(data, options) {
     this.parseOptions(options || {});
-    this.prepData(data);
-    this.packDots();
     this.svg = d3.select(this.selector)
         //.style("background-color", "lightgray")
         .attr("width", this.width).attr("height", this.height);
 
-    this.showCircles();
+    this.prepData(data);
+    this.packDots();
+    this.showConfusionMatrix();
+
+    this.showDots();
 }
 Classified.prototype.parseOptions = function(options) {
     this.width = options.width || 600;
@@ -34,12 +36,19 @@ Classified.prototype.prepData = function(data) {
         // return truth of prediction and class
         return (this.proba > t) ? (this.label ? "tp" : "fp") : (this.label ? "fn" : "tn");
     };
+    var c = this;
+    var show = function(t) {
+        var tc = this.tc(t);
+        c[tc]++;
+        return tc;
+    }
 
     for (var i = 0; i < data.length; i++) {
         if (arr) { dot = {'proba': data[i][0], 'label': data[i][1] > 0}; }
         else { dot = data[i]; }
         dot.truth = truth;
         dot.tc = tc;
+        dot.show = show;
         n_pos += dot.label;
         dots.push(dot);
     }
@@ -53,10 +62,43 @@ Classified.prototype.prepData = function(data) {
     this.p_max = dots[this.size - 1].proba;
     this.p_min = dots[0].proba;
 };
+Classified.prototype.showConfusionMatrix = function() {
+    var i, bin, dist = this.radius * 2 * 1.1,
+        n = Math.ceil((this.data[this.size-1].x - this.data[0].x) / dist),
+        counts = new Array(n + 1);
+    for (i = 0; i < counts.length; i++) {counts[i] = 0};
+    for (i = 0; i < this.size; i++) {
+        counts[Math.round((this.data[i].x - this.x_min) / dist)]++;
+    }
+    var max = d3.max(counts) - 2, track = 0;
+    for (i = counts.length - 1; i >= 0 && track < 8; i--) {
+        if (counts[i] < max) {track ++}
+        else {track = 0}
+    }
+    console.log(i);
+    console.log(counts.length);
 
+    var x = (i + 4) * dist;
+    var cm = [
+        {"class": "tn", "label": "TN", "r": this.radius, "x": x, "y": dist * 2},
+        {"class": "fn", "label": "FN", "r": this.radius - .5, "x": x, "y": dist * 3},
+        {"class": "fp", "label": "FP", "r": this.radius - .5, "x": x + dist, "y": dist * 2},
+        {"class": "tp", "label": "TP", "r": this.radius, "x": x + dist, "y": dist * 3},
+    ]
+
+    this.svg.append("g")
+        .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
+        .selectAll(".dot").data(cm)
+        .enter().append("circle")
+        .attr("r", function(d) {return d.r})
+        .attr("cx", function(d) {return d.x})
+        .attr("cy", function(d) {return d.y})
+        .attr("class", function(d) {return d.class;});
+    this._legend = {"tn": cm[0], "fn": cm[1], "fp": cm[2], "tp": cm[3]};
+}
 Classified.prototype.packDots = function() {
 
-    var rows = [], bottom, size = this.size, height = this.dots_height,
+    var rows, bottom, size = this.size, height = this.dots_height,
         data = this.data,
         dist = Math.min(this.radius * 2 * 1.1, Math.pow(1. * this.dots_width * this.dots_height / this.size, 0.5));
 
@@ -78,18 +120,18 @@ Classified.prototype.packDots = function() {
         if (rows.length * dist < bottom) { break; }
         else { dist = dist * .95 }
     }
-
     this.p2x = p2x;
     this.radius = (dist) / 1.1 / 2;
     this.y_max = dist * rows.length;
+    this.x_min = this.p2x(this.p_min);
     console.log('Distance: ' + dist);
     console.log('Radius: ' + this.radius);
 
 };
 
-Classified.prototype.showCircles = function() {
+Classified.prototype.showDots = function() {
 
-    var delay = 2000 / this.size;
+    var delay = 1000 / this.size;
 
     var xAxis = d3.svg.axis().scale(this.p2x).orient("bottom")   ;
 
@@ -111,9 +153,9 @@ Classified.prototype.showCircles = function() {
     this.fp = 0;
     this.tn = 0;
     this.fn = 0;
-    for (var i = 0; i < this.size; i++) {
-        this[this.data[i].tc(t)] += 1;
-    }
+    //for (var i = 0; i < this.size; i++) {
+    //    this[this.data[i].tc(t)] += 1;
+    //}
 
     this.svg.append("g")
         .attr("transform", "translate(" + this.margin + "," + this.margin + ")")
@@ -122,7 +164,7 @@ Classified.prototype.showCircles = function() {
         .attr("r", 0)
         .attr("cx", threshold)
         .attr("cy", function(d, i) {return y_max - y_max * i / size})
-        .attr("class", function(d) {return "dot " + d.tc(t);})
+        .attr("class", function(d) {return "dot " + d.show(t);})
         .attr("tc", function(d) {return d.tc(t);})
         .transition()
         .duration(100)
@@ -182,15 +224,12 @@ Classified.prototype.showCircles = function() {
         .attr("height", this.dots_height)
         .on("mouseover", function() { if (c.isLocked()) {return}; yline.style("display", null); })
         .on("mouseout", function() { if (c.isLocked()) {return}; yline.style("display", "none"); })
-        .on("click", function() { c.toggle(d3.mouse(this)); })
-        .on("mousemove", function() {
-            if (c.isLocked()) {return}
-            c._mousemove(d3.mouse(this));
-        });
+        .on("click", function() { c.toggle(); c._mousemove(d3.mouse(this));})
+        .on("mousemove", function() {c._mousemove(d3.mouse(this));});
 
 };
 Classified.prototype._mousemove = function(xy) {
-
+    if (this._locked) {return};
     this._yline.attr("x1", xy[0]).attr("x2", xy[0]).attr("y1", xy[1]);
     this._pmark.attr("cx", xy[0]);
     this.updateDots(this.p2x.invert(xy[0]));
@@ -245,13 +284,9 @@ Classified.prototype.unlock = function() {
     this._yline.style("display", null);
     this._pmark.style("fill", "red");
 };
-Classified.prototype.toggle = function(xy) {
-    if (this._locked) {
-        this.unlock();
-        this._mousemove(xy);
-    } else {
-        this.lock()
-    };
+Classified.prototype.toggle = function() {
+    if (this._locked) {this.unlock();}
+    else {this.lock()};
 };
 Classified.prototype.isLocked = function() {
     return this._locked;
