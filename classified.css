@@ -3,14 +3,14 @@
 .dots text,
 .legend text,
 .metrics.axis text { font: 11px sans-serif; }
-.axis text { font: 11px sans-serif; }
+.axis text, .axis2 text { font: 11px sans-serif; }
 .metrics.axis path { display: none; }
 .pos {fill-opacity: 0.5;}
 .neg {fill-opacity: 0.05;}
-.tp { fill: #1f77b4; stroke: #1f77b4; stroke-width: 1px; }
-.fp { fill: #fff; stroke: #31a354; stroke-width: 2px; }
-.tn { fill: #31a354; stroke: #31a354; stroke-width: 1px; }
-.fn { fill: #fff; stroke: #1f77b4; stroke-width: 2px; }
+.tp { fill: #1f77b4; stroke: #1f77b4; stroke-width: 2px; }
+.fp { fill: #ddd; stroke: #31a354; stroke-width: 2px; fill-opacity: 0 }
+.tn { fill: #31a354; stroke: #31a354; stroke-width: 2px; }
+.fn { fill: #ddd; stroke: #1f77b4; stroke-width: 2px; fill-opacity: 0 }
 .legend text { font-size: 12pxbba; font-family: sans-serif }
 .metric .title { font-size: 12px; font-weight: bold; text-anchor: end; font-family: sans-serif; }
 .metric .subtitle { font-size: 10px; fill: #999; text-anchor: end; font-family: sans-serif; }
@@ -22,3 +22,17 @@ rect.mbar { fill: steelblue; }
 .axis line { stroke: #000;}
 .grid path { display: none; }
 .overlay { fill: none; pointer-events: all; }
+.grid-background { fill: #ddd; }
+.axis2 path,
+.grid path {
+  display: none;
+}
+.axis2 line {
+  stroke: #000;
+}
+
+.aline {
+  fill: none;
+  stroke: black;
+  stroke-width: 1.5px;
+}
