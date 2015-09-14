@@ -14,6 +14,7 @@
 .legend text { font-size: 12pxbba; font-family: sans-serif }
 .metric .title { font-size: 12px; font-weight: bold; text-anchor: end; font-family: sans-serif; }
 .metric .subtitle { font-size: 10px; fill: #999; text-anchor: end; font-family: sans-serif; }
+.metric .value { font-size: 12px; font-weight: bold; font-family: sans-serif; }
 rect.mbg  { fill: #ddd; }
 rect.mbar { fill: steelblue; }
 .grid line { stroke: #fff; }

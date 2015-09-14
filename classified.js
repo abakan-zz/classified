@@ -23,7 +23,20 @@ function Classified(data, options) {
     this.tn = 0;
     this.fn = 0;
     this.prepData(data);
+
+    this._labels = {
+        "accuracy": {"title": "Accuracy", "subtitle": "(TP + TN) / (P + N)"},
+        "precision": {"title": "Precision", "subtitle": "TP / (TP + FP)"},
+        "recall": {"title": "Recall", "subtitle": "TP / (TP + FN)"},
+        "sensitivity": {"title": "Sensitivity", "subtitle": "TP / (TP + FN)"},
+        "specificity": {"title": "Specificity", "subtitle": "TN / (TN + FP)"},
+        "f1score": {"title": "F1 score", "subtitle": "TN / (TN + FP)"},
+        "missrate": {"title": "Miss rate", "subtitle": "FN / P"},
+        "fallout": {"title": "Fall-out", "subtitle": "FP / N"}
+    };
     this.show();
+
+
 }
 Classified.prototype.parseOptions = function(options) {
     this.width = options.width || 600;
@@ -40,7 +53,7 @@ Classified.prototype.parseOptions = function(options) {
         ["accuracy", "precision", "recall", "specificity", "f1score",
          "missrate", "fallout"]);
     //this.layout = (options.layout || "dots;dots,dots;dots,dots,dots")
-    this.layout = (options.layout || "dots;dots,dots")
+    this.layout = (options.layout || "dots;lines,grid")
 
 };
 
@@ -121,11 +134,15 @@ Classified.prototype.prepData = function(data) {
         n_pos += dot.label;
         dots.push(dot);
     }
+
+    var size = data.length;
     dots.sort(function (a, b) {return a.proba - b.proba;});
-    dots.map(function (d, i) {d.index = i;});
+    dots.map(function (d, i) {
+        d.index = i;
+        d.pct = i / size;
+    });
 
-
-    this.size = data.length;
+    this.size = size;
     this.data = dots;
     this.n_pos = n_pos;
     this.n_neg = this.size - n_pos;
@@ -140,6 +157,7 @@ Classified.prototype.prepData = function(data) {
         }
     }
     this.min_diff = min_diff;
+    this.threshold = dots[this.n_neg].proba;
 };
 Classified.prototype.profile = function() {
 
@@ -174,38 +192,170 @@ Classified.prototype.profile = function() {
     }
     data[0].specificity = data[1].specificity;
 };
-Classified.prototype.showLines = function() {
+Classified.prototype.showLines = function(svg, h, w, m) {
     this.profile()
 
-    var data = this.data;
+    var c = this,
+        size = this.size,
+        data = this.data,
+        labels = this._labels,
+        sparklines = this.sparklines,
+        margin = (m || 10),
+        gap = 6, pad = 2,
+        height = (h - 2 * margin) / sparklines.length - gap - 2 * pad,
+        lwidth = 80,
+        width = Math.min(100, (w - 2 * margin) - lwidth - 2 * pad - gap),
+        g, yline, format = d3.format(".2f");
 
-    var margin = this.margin,
-        height = margin * 1 + this.dots_height * 1,
-        top = margin * 5 + this.dots_height;
-    var svg = this.svg;
+    var x = d3.scale.linear().range([0, width])
+        .domain(d3.extent(data, function(d) {return d.proba;}));
+
+    var x = d3.scale.linear().range([0, width])
+        .domain([0, 1]);
+
+
     this.sparklines.forEach(function(l, i){
 
-        var x = d3.scale.linear().range([0, 100])
-            .domain(d3.extent(data, function(d) {return d.proba;})).nice();
-
-        var y = d3.scale.linear().range([30, 0])
-            .domain(d3.extent(data, function(d){return d[l]}));
+        var yDomain = d3.extent(data, function(d){return d[l]});
+        var y = d3.scale.linear().range([height, 0])
+            .domain(yDomain);
 
         var line = d3.svg.line()
-            .x(function(d) { return x(d.proba); })
+            .x(function(d) { return x(d.pct); })
             .y(function(d) { return y(d[l]); });
 
+        g = svg.append("g")
+            .attr("class", "metric")
+            .attr("transform", "translate(" + margin + "," + (i * (height + gap + 2 * pad)) + ")");
 
-        svg.append("g")
+        g.append("text").attr("class", "title")
+            .attr("x", lwidth)
+            .attr("y", height - 12)
+            .text(labels[l].title);
+
+        g.append("text")
+            .attr("class", "subtitle")
+            .attr("x", lwidth)
+            .attr("y", height)
+            .text(labels[l].subtitle);
+
+
+
+        g.append("g")
             .attr("class", "dots")
-            .attr("transform", "translate(" + margin + "," + (top + i * 30) + ")")
+            .attr("transform", "translate(" + (lwidth + gap) + ",0)")
+            .append("rect")
+            .attr("class", "grid-background")
+            .attr("width", width)
+            .attr("height", height + 2 * pad);
+
+        g.append("g")
+            .attr("class", "grid")
+            .attr("transform", "translate(" + (lwidth + gap) + "," + (height + 2 * pad) + ")")
+            .call(d3.svg.axis().scale(x)
+            .ticks(10).tickSize(-(height + 2 * pad)))
+            .selectAll(".tick")
+            .data(x.ticks(5), function(d) { return d; })
+            .exit()
+            .classed("minor", true);
+
+        if (i + 1 == sparklines.length) {
+            g.append("g")
+                .attr("class", "axis")
+                .attr("transform", "translate(" + (lwidth + gap) + "," + (height + 2 * pad) + ")")
+                .call(d3.svg.axis().scale(x).ticks(3));
+        };
+        // g.append("g")
+        //     .attr("class", "axis")
+        //     .attr("transform", "translate(" + (lwidth + gap + width) + "," + pad +")")
+        //     .call(d3.svg.axis().scale(y).tickValues(yDomain).orient("right"));
+
+        // show lines
+        g.append("g")
+            .attr("transform", "translate(" + (lwidth + gap) + "," + pad + ")")
             .append("path")
             .datum(data)
             .attr("class", "aline")
-            .attr("d", line);
-        //console.log([margin, top, top + (i * 40)]);
+            .attr("d", line[0])
+            .transition()
+            .delay(100)
+            .duration(1000)
+            .attrTween('d', pathTween);
 
-    })
+        // http://stackoverflow.com/questions/13353665/cant-make-paths-draw-growing-slowly-with-d3
+        function pathTween() {
+            var interpolate = d3.scale.quantile()
+                    .domain([0, 1])
+                    .range(d3.range(1, data.length + 1));
+            return function(t) {
+                return line(data.slice(0, interpolate(t)));
+            };
+        };
+
+        var pmark = g.append("g")
+            .attr("class", "tmark")
+            .attr("transform", "translate(" + (lwidth + gap) + "," + pad + ")")
+            .append("circle")
+            .style("fill", "black")
+            .attr("r", 2)
+            .attr("cx", x(data[c.t_idx].pct))
+            .attr("cy", y(data[c.t_idx][l]));
+
+        var mtext = g.append("text").attr("class", "value")
+            .attr("x", lwidth + gap + width)
+            .attr("y", height)
+            .text("");
+
+        c._onlock.push(function() {
+            pmark.style("fill", "black");
+        });
+        c._onunlock.push(function() {
+            //yline.style("display", null);
+            pmark.style("fill", "red");
+        });
+        c._onmove.push(function(p){
+            pmark.attr("cx", x(data[c.t_idx].pct))
+                .attr("cy", y(data[c.t_idx][l]));
+            mtext.text(format(data[c.t_idx][l]))
+        });
+
+    });
+
+
+    svg.append("rect")
+        .attr("transform", "translate(" + (lwidth + margin) + ",0)")
+        .attr("class", "overlay")
+        .attr("width", width + gap * 2)
+        .attr("height", h - margin * 2)
+        .on("click", function() { c.toggle(); c._mousemove(d3.mouse(this));})
+        .on("mousemove", function() {
+            if (c.isLocked()) {return};
+            var xy = d3.mouse(this);
+            console.log(xy)
+            var index = Math.round(x.invert(xy[0] - gap) * size);
+            console.log(index)
+            if (index < 0) {
+                c.update(c.p_min - c.min_diff);
+            } else if (index >= size) {
+                c.update(c.p_max + c.min_diff);
+            } else {
+                c.update(data[index].proba);
+            };
+        });
+
+
+    return
+    yline = g.append("g")
+        .attr("class", "tline")
+        .attr("transform", "translate(" + (margin + lwidth + gap) + "," + margin + ")")
+        .append("line")
+        .style("display", "none")
+        .style("stroke", "red")
+        .style("stroke-linecap", "butt")
+        .style("stroke-dasharray", "2,3")
+        .attr("x1", threshold).attr("x2", threshold)
+        .attr("y1", origin)
+        .attr("y2", h - 20 + 1.5);
 
 };
 
@@ -326,8 +476,7 @@ Classified.prototype.showDots = function(g, h, w) {
         //.attr("x", -10).attr("y", -6)
         //.text("Probability");
 
-    var t = data[this.n_neg].proba;
-    this.threshold = t;
+    var t = this.threshold;
     var threshold = p2x(t), origin = h - y_max;
     //for (var i = 0; i < this.size; i++) {
     //    this[this.data[i].tc(t)] += 1;
@@ -359,7 +508,6 @@ Classified.prototype.showDots = function(g, h, w) {
 
     var yline = g.append("g")
         .attr("class", "tline")
-        //.attr("transform", "translate(" + this.margin + "," + this.margin + ")")
         .append("line")
         .style("display", "none")
         .style("stroke", "red")
@@ -415,7 +563,7 @@ Classified.prototype.showDots = function(g, h, w) {
     });
 
 
-    this._overlay = g.append("rect")
+    g.append("rect")
         .attr("transform", "translate(" + 10 + ",0)")
         .attr("class", "overlay")
         .attr("width", w - 20)
@@ -438,32 +586,42 @@ Classified.prototype.showMetric = function() {
 };
 Classified.prototype.showROCCurve = function() {
 };
-Classified.prototype.showGrid = function() {
-    var margin = this.margin,
-        height = margin * 1 + this.dots_height * 1,
-        top = margin * 1;
-    this.svg.append("g")
+Classified.prototype.showGrid = function(g, h, w, m, xlabels) {
+    var data = this.data, margin = m || 0,
+        height = h - 2 * margin,
+        width = w - 2 * margin;
+
+    var p2x = d3.scale.linear().range([0, width])
+        .domain(d3.extent(data, function(d) {return d.pct;})).nice();
+
+    g.append("g")
         .attr("class", "dots")
-        .attr("transform", "translate(" + margin + "," + top + ")")
+        .attr("transform", "translate(" + margin + "," + margin + ")")
         .append("rect")
         .attr("class", "grid-background")
-        .attr("width", this.dots_width)
-        .attr("height", this.dots_height);
+        .attr("width", width)
+        .attr("height", height);
 
-    this.svg.append("g")
+    g.append("g")
         .attr("class", "grid")
-        .attr("transform", "translate(" + margin + "," + height + ")")
-        .call(d3.svg.axis().scale(this.p2x)
-        .ticks(20).tickSize(-this.dots_height))
+        .attr("transform", "translate(" + margin + "," + (height + margin) + ")")
+        .call(d3.svg.axis().scale(p2x)
+        .ticks(10).tickSize(-height))
         .selectAll(".tick")
-        .data(this.p2x.ticks(10), function(d) { return d; })
+        .data(p2x.ticks(5), function(d) { return d; })
         .exit()
         .classed("minor", true);
-    return;
-    this.svg.append("g")
+    if (xlabels) {
+        g.append("g")
+            .attr("class", "axis2")
+            .attr("transform", "translate(" + margin + "," + (height + margin) + ")")
+            .call(d3.svg.axis().scale(p2x).ticks(5));
+    };
+    return
+    g.append("g")
         .attr("class", "axis2")
-        .attr("transform", "translate(" + margin + "," + height + ")")
-        .call(d3.svg.axis().scale(this.p2x).ticks(10));
+        .attr("transform", "translate(" + margin + "," + (height + margin) + ")")
+        .call(d3.svg.axis().scale(p2x).ticks(2));
 };
 
 Classified.prototype.lock = function() {
