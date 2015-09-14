@@ -53,7 +53,7 @@ Classified.prototype.parseOptions = function(options) {
         ["accuracy", "precision", "recall", "specificity", "f1score",
          "missrate", "fallout"]);
     //this.layout = (options.layout || "dots;dots,dots;dots,dots,dots")
-    this.layout = (options.layout || "dots;lines,grid")
+    this.layout = (options.layout || "dots;lines")
 
 };
 
@@ -321,27 +321,26 @@ Classified.prototype.showLines = function(svg, h, w, m) {
 
     });
 
+    var update = function(xy) {
+        if (c.isLocked()) {return};
+        var index = Math.round(x.invert(xy[0] - gap) * size);
+        if (index < 0) {
+            c.update(c.p_min - c.min_diff);
+        } else if (index >= size) {
+            c.update(c.p_max + c.min_diff);
+        } else {
+            c.update(data[index].proba);
+        };
+
+    }
 
     svg.append("rect")
         .attr("transform", "translate(" + (lwidth + margin) + ",0)")
         .attr("class", "overlay")
         .attr("width", width + gap * 2)
         .attr("height", h - margin * 2)
-        .on("click", function() { c.toggle(); c._mousemove(d3.mouse(this));})
-        .on("mousemove", function() {
-            if (c.isLocked()) {return};
-            var xy = d3.mouse(this);
-            console.log(xy)
-            var index = Math.round(x.invert(xy[0] - gap) * size);
-            console.log(index)
-            if (index < 0) {
-                c.update(c.p_min - c.min_diff);
-            } else if (index >= size) {
-                c.update(c.p_max + c.min_diff);
-            } else {
-                c.update(data[index].proba);
-            };
-        });
+        .on("click", function() { c.toggle(); update(d3.mouse(this));})
+        .on("mousemove", function() {update(d3.mouse(this));});
 
 
     return
@@ -562,6 +561,13 @@ Classified.prototype.showDots = function(g, h, w) {
 
     });
 
+    var update = function(xy) {
+        if (c.isLocked()) {return};
+        yline.style("display", null);
+        c.update(p2x.invert(xy[0]));
+        yline.attr("x1", 10 + xy[0]).attr("x2", 10 + xy[0]).attr("y1", xy[1]);
+
+    };
 
     g.append("rect")
         .attr("transform", "translate(" + 10 + ",0)")
@@ -570,14 +576,8 @@ Classified.prototype.showDots = function(g, h, w) {
         .attr("height", h - 20)
         .on("mouseover", function() { if (c.isLocked()) {return}; yline.style("display", null); })
         .on("mouseout", function() { if (c.isLocked()) {return}; yline.style("display", "none"); })
-        .on("click", function() { c.toggle(); c._mousemove(d3.mouse(this));})
-        .on("mousemove", function() {
-            if (c.isLocked()) {return};
-            yline.style("display", null);
-            var xy = d3.mouse(this);
-            c.update(p2x.invert(xy[0]));
-            yline.attr("x1", 10 + xy[0]).attr("x2", 10 + xy[0]).attr("y1", xy[1]);
-        });
+        .on("click", function() { c.toggle(); update(d3.mouse(this));})
+        .on("mousemove", function() {update(d3.mouse(this));});
 
     setTimeout(function() {c.unlock()}, duration + 100);
 };
