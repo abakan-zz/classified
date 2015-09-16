@@ -298,8 +298,34 @@ Classified.prototype.showLines = function(svg, h, w, m) {
             .append("circle")
             .style("fill", "black")
             .attr("r", 2)
-            .attr("cx", x(data[c.t_idx].pct))
+            .attr("cx", x(data[0].pct))
+            .attr("cy", y(data[0][l]));
+
+        var emark = g.append("g")
+                .attr("class", "tmark")
+                .attr("transform", "translate(" + (lwidth + gap) + "," + pad + ")")
+                .append("circle")
+                .style("fill", "black")
+                .attr("r", 2)
+                .attr("cx", x(data[0].pct))
+                .attr("cy", y(data[0][l]));
+
+
+        var pmark = g.append("g")
+            .attr("class", "tmark")
+            .attr("transform", "translate(" + (lwidth + gap) + "," + pad + ")")
+            .append("circle")
+            .style("fill", "black")
+            .attr("r", 2)
+            .attr("cx", x(data[0].pct))
+            .attr("cy", y(data[0][l]));
+
+        setTimeout(function(){
+            emark.attr("cx", x(data[size-1].pct))
+            .attr("cy", y(data[size-1][l]));
+            pmark.attr("cx", x(data[c.t_idx].pct))
             .attr("cy", y(data[c.t_idx][l]));
+        }, 1000);
 
         var mtext = g.append("text").attr("class", "value")
             .attr("x", lwidth + gap + width)
