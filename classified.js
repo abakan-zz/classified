@@ -41,8 +41,8 @@ function Classified(data, options) {
 Classified.prototype.parseOptions = function(options) {
     this.width = options.width || 600;
     this.height = options.height || 500;
-    if (this.height < 400) { this.height = 400; }
-    if (this.width < 400) { this.width = 400; }
+    // if (this.height < 400) { this.height = 400; }
+    // if (this.width < 400) { this.width = 400; }
     this.radius = (options.radius || 5);
     this.margin = (options.margin || 10);
     this.bars_height = 300;
@@ -53,7 +53,7 @@ Classified.prototype.parseOptions = function(options) {
         ["accuracy", "precision", "recall", "specificity", "f1score",
          "missrate", "fallout"]);
     //this.layout = (options.layout || "dots;dots,dots;dots,dots,dots")
-    this.layout = (options.layout || "dots;lines")
+    this.layout = (options.layout || "lines,dots")
 
 };
 
@@ -534,8 +534,10 @@ Classified.prototype.showDots = function(g, h, w) {
         pmark.style("fill", "red");
     });
     this._onmove.push(function(p){
-        var threshold = p;
-        pmark.attr("cx", 10 + p2x(p));
+        var threshold = p, x = p2x(p);
+        pmark.attr("cx", 10 + x);
+        yline.attr("x1", 10 + x).attr("x2", 10 + x)
+
         if (Math.abs(threshold - c.threshold) < c.min_diff){
             return;
         }
@@ -558,14 +560,13 @@ Classified.prototype.showDots = function(g, h, w) {
         if (i < 0) { c.t_idx = 0; }
         else if (i >= size) { c.t_idx = size - 1; }
         else { c.t_idx = i; }
-
     });
 
     var update = function(xy) {
         if (c.isLocked()) {return};
         yline.style("display", null);
         c.update(p2x.invert(xy[0]));
-        yline.attr("x1", 10 + xy[0]).attr("x2", 10 + xy[0]).attr("y1", xy[1]);
+        yline.attr("y1", xy[1]);
 
     };
 
@@ -638,6 +639,8 @@ Classified.prototype.unlock = function() {
 };
 Classified.prototype.update = function(p) {
     //console.log('Update: ' + p)
+    if (p > this.p_max){ return }
+
     for (var i = 0; i < this._onmove.length; i++) {
         this._onmove[i](p);
     }
