@@ -7,10 +7,14 @@
 .metrics.axis path { display: none; }
 .pos {fill-opacity: 0.5;}
 .neg {fill-opacity: 0.05;}
-.tp { fill: #1f77b4; stroke: #1f77b4; stroke-width: 2px; }
-.fp { fill: #ddd; stroke: #31a354; stroke-width: 2px; fill-opacity: 0 }
-.tn { fill: #31a354; stroke: #31a354; stroke-width: 2px; }
-.fn { fill: #ddd; stroke: #1f77b4; stroke-width: 2px; fill-opacity: 0 }
+.tp_ { fill: #1f77b4; stroke: #1f77b4; stroke-width: 2px; }
+.fp_ { fill: #ddd; stroke: #31a354; stroke-width: 2px; fill-opacity: 0 }
+.tn_ { fill: #31a354; stroke: #31a354; stroke-width: 2px; }
+.fn_ { fill: #ddd; stroke: #1f77b4; stroke-width: 2px; fill-opacity: 0 }
+.tp { fill: rgb(16, 70, 131); stroke: rgb(16, 70, 131); stroke-width: 1px; }
+.fp { fill: #ddd; stroke: rgb(65, 153, 43); stroke-width: 1px; fill-opacity: 0 }
+.tn { fill: rgb(65, 153, 43); stroke: rgb(65, 153, 43); stroke-width: 1px; }
+.fn { fill: #ddd; stroke: rgb(16, 70, 131); stroke-width: 1px; fill-opacity: 0 }
 .legend text { font-size: 12pxbba; font-family: sans-serif }
 .metric .title { font-size: 12px; font-weight: bold; text-anchor: end; font-family: sans-serif; }
 .metric .subtitle { font-size: 10px; fill: #999; text-anchor: end; font-family: sans-serif; }
